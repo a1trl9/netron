@@ -434,11 +434,11 @@ host.BrowserHost = class {
         let url = file;
         if (this.window && this.window.location && this.window.location.href) {
             let location = this.window.location.href.split('?').shift();
-	    if (location.indexOf('models') != -1) {
-	        const base = location.split('/models').shift();
-		let canonical_url = url.replace('./', '/');
+            if (location.indexOf('models') != -1) {
+                const base = location.split('/models').shift();
+                const canonical_url = url.replace('./', '/');
                 return base + canonical_url;
-	    }
+            }
             if (location.endsWith('.html')) {
                 location = location.split('/').slice(0, -1).join('/');
             }
