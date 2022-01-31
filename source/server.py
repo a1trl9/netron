@@ -52,6 +52,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         headers = {}
         buffer = None
         data = '/data/'
+        models = '/models/'
         if status_code == 0:
             if pathname == '/':
                 meta = []
@@ -66,6 +67,22 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                 headers['Content-Type'] = 'text/html'
                 headers['Content-Length'] = len(buffer)
                 status_code = 200
+            elif pathname.startswith(models):
+                file = pathname[len(models):]
+                full_file_path = self.folder + '/' + unquote(file)
+                status_code = 404
+                if os.path.exists(full_file_path):
+                    meta = []
+                    meta.append('<meta name="type" content="Python">')
+                    meta.append('<meta name="version" content="' + __version__ + '">')
+                    meta.append('<meta name="file" content="/data/' + file + '">')
+                    with codecs.open(folder + '/index.html', mode="r", encoding="utf-8") as open_file:
+                        buffer = open_file.read()
+                    buffer = re.sub(r'<meta name="version" content="\d+.\d+.\d+">', '\n'.join(meta), buffer)
+                    buffer = buffer.encode('utf-8')
+                    headers['Content-Type'] = 'text/html'
+                    headers['Content-Length'] = len(buffer)
+                    status_code = 200
             elif pathname.startswith(data):
                 file = pathname[len(data):]
                 if file == self.file and self.data:
@@ -115,16 +132,19 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     pass
 
 class HTTPServerThread(threading.Thread):
-    def __init__(self, data, file, address, log):
+    def __init__(self, data, file, directory, address, log):
         threading.Thread.__init__(self)
         self.address = address
         self.url = 'http://' + address[0] + ':' + str(address[1])
         self.file = file
         self.server = ThreadedHTTPServer(address, HTTPRequestHandler)
         self.server.timeout = 0.25
-        if file:
+        if file is not None:
             self.server.RequestHandlerClass.folder = os.path.dirname(file) if os.path.dirname(file) else '.'
             self.server.RequestHandlerClass.file = os.path.basename(file)
+        elif directory is not None:
+            self.server.RequestHandlerClass.folder = directory
+            self.server.RequestHandlerClass.file = ''
         else:
             self.server.RequestHandlerClass.folder = ''
             self.server.RequestHandlerClass.file = ''
@@ -243,7 +263,7 @@ def wait():
         sys.stdout.flush()
         stop()
 
-def serve(file, data, address=None, browse=False, log=False):
+def serve(file, data, directory=None, address=None, browse=False, log=False):
     '''Start serving model from file or data buffer at address and open in web browser.
 
     Args:
@@ -267,7 +287,7 @@ def serve(file, data, address=None, browse=False, log=False):
         address = _make_port(address)
     _update_thread_list()
 
-    thread = HTTPServerThread(data, file, address, log)
+    thread = HTTPServerThread(data, file, directory, address, log)
     thread.start()
     while not thread.alive():
         time.sleep(10)
@@ -283,7 +303,7 @@ def serve(file, data, address=None, browse=False, log=False):
 
     return address
 
-def start(file=None, address=None, browse=True, log=False):
+def start(file=None, directory=None, address=None, browse=True, log=False):
     '''Start serving model file at address and open in web browser.
 
     Args:
@@ -295,4 +315,4 @@ def start(file=None, address=None, browse=True, log=False):
     Returns:
         A (host, port) address tuple.
     '''
-    return serve(file, None, browse=browse, address=address, log=log)
+    return serve(file, None, directory=directory, browse=browse, address=address, log=log)
